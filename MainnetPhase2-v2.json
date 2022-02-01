@@ -1,110 +1,121 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "Amazon ECS Phase 2-Version 2 Template",
+  "Description": "AWS Validator Node Cloudformation template for Existing Users",
 
   "Parameters": {
-
     "ClusterName": {
       "Type": "String",
       "Default": "Validator-Cluster-2",
       "Description": "Enter the ClusterName in which you want to create your Validator Services."
     },
 
-    
-    "SecurityGroupName":{
+    "SecurityGroupName": {
       "Type": "AWS::EC2::SecurityGroup::GroupName",
       "Description": "Choose your Security Group"
     },
-    
-    "PrivateBeaconIP":{
 
+    "PrivateBeaconIP": {
       "Type": "String",
       "Description": "Enter Your Private Beacon Node Ip.",
       "Default": "xx.xxx.xxx.xx"
-
     },
     "ConnectTo": {
-
       "Type": "String",
-      "AllowedValues": [
-  
-          "Launchnodes Beacon Node",
-  
-          "Your own Beacon Node"
-  
-      ],
+      "AllowedValues": ["Launchnodes Beacon Node", "Your own Beacon Node"],
       "Description": "Choose the desired option"
-  
     }
-    
   },
 
   "Conditions": {
     "LN_Node": {
-
       "Fn::Equals": [
-
-          {
-              "Ref": "ConnectTo"
-          },
-          "Launchnodes Beacon Node"
+        {
+          "Ref": "ConnectTo"
+        },
+        "Launchnodes Beacon Node"
       ]
     },
     "Private_Node": {
-
       "Fn::Equals": [
-
-          {
-              "Ref": "ConnectTo"
-          },
-          "Your own Beacon Node"
-
+        {
+          "Ref": "ConnectTo"
+        },
+        "Your own Beacon Node"
       ]
     }
   },
 
   "Resources": {
+    "IAMRole": {
+      "Type": "AWS::IAM::Role",
 
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+
+          "Statement": [
+            {
+              "Effect": "Allow",
+
+              "Principal": {
+                "Service": ["ecs-tasks.amazonaws.com"]
+              },
+
+              "Action": ["sts:AssumeRole"]
+            }
+          ]
+        },
+
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/AWSMarketplaceMeteringRegisterUsage"
+        ],
+
+        "RoleName": {
+          "Fn::Join": ["-", ["ValidatorRole", { "Ref": "ClusterName" }]]
+        },
+
+        "Path": "/"
+      }
+    },
 
     "LNAddInBoundRule": {
       "Type": "AWS::EC2::SecurityGroupIngress",
       "Condition": "LN_Node",
       "Properties": {
-          "GroupName": {
-            "Ref": "SecurityGroupName"
-          },
-          "IpProtocol": "tcp",
-          "CidrIp": "34.230.142.97/32",
-          "FromPort": 6001,
-          "ToPort": 6001
+        "GroupName": {
+          "Ref": "SecurityGroupName"
+        },
+        "IpProtocol": "tcp",
+        "CidrIp": "34.230.142.97/32",
+        "FromPort": 6001,
+        "ToPort": 6001
       }
     },
 
+    
     "PrivateAddInBoundRule": {
       "Type": "AWS::EC2::SecurityGroupIngress",
       "Condition": "Private_Node",
       "Properties": {
-          "GroupName": {
-             "Ref": "SecurityGroupName"
-          },
-          "IpProtocol": "tcp",
-          "CidrIp": {
-            "Fn::Join" : [ "", [{"Ref":"PrivateBeaconIP"},"/32"] ]
-          },
-          "FromPort": 6001,
-          "ToPort": 6001
+        "GroupName": {
+          "Ref": "SecurityGroupName"
+        },
+        "IpProtocol": "tcp",
+        "CidrIp": {
+          "Fn::Join": ["", [{ "Ref": "PrivateBeaconIP" }, "/32"]]
+        },
+        "FromPort": 4000,
+        "ToPort": 4000
       }
     },
-
 
     "LNGatewayTaskDefinition": {
       "Type": "AWS::ECS::TaskDefinition",
       "Condition": "LN_Node",
       "Properties": {
-        
         "RequiresCompatibilities": ["EC2"],
         "Family": {
-          "Fn::Join" : [ "-", [ "aws_validator_gateway", {"Ref":"ClusterName"}] ]
+          "Fn::Join": ["-", ["aws_validator_gateway", { "Ref": "ClusterName" }]]
         },
         "ContainerDefinitions": [
           {
@@ -116,8 +127,8 @@
             "PortMappings": [
               {
                 "ContainerPort": 6001,
-                  "HostPort": 6001,
-                  "Protocol": "tcp"
+                "HostPort": 6001,
+                "Protocol": "tcp"
               }
             ],
             "Essential": true,
@@ -142,14 +153,13 @@
           }
         ],
 
-        "TaskRoleArn":{
-          "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/ValidatorRole" 
+        "TaskRoleArn": {
+          "Fn::GetAtt": "IAMRole.Arn"
         },
-        
+
         "NetworkMode": "host",
         "Volumes": []
       }
-      
     },
 
     "LNValidatorGatewayLogGroup": {
@@ -157,7 +167,7 @@
       "Condition": "LN_Node",
       "Properties": {
         "LogGroupName": {
-          "Fn::Join" : [ "-", [ "aws_validator_gateway", {"Ref":"ClusterName"}] ]
+          "Fn::Join": ["-", ["aws_validator_gateway", { "Ref": "ClusterName" }]]
         }
       }
     },
@@ -168,7 +178,7 @@
       "Properties": {
         "RequiresCompatibilities": ["EC2"],
         "Family": {
-          "Fn::Join" : [ "-", [ "aws_validator_gateway", {"Ref":"ClusterName"}] ]
+          "Fn::Join": ["-", ["aws_validator_gateway", { "Ref": "ClusterName" }]]
         },
         "ContainerDefinitions": [
           {
@@ -188,7 +198,10 @@
             "Command": [
               "--connect-launchnodes=false",
               {
-                "Fn::Join" : [ "=", [ "--beacon_url", {"Ref":"PrivateBeaconIP"}] ]
+                "Fn::Join": [
+                  "=",
+                  ["--beacon_url", { "Ref": "PrivateBeaconIP" }]
+                ]
               }
             ],
             "Environment": [],
@@ -208,10 +221,10 @@
           }
         ],
 
-        "TaskRoleArn":{
-          "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/ValidatorRole" 
+        "TaskRoleArn": {
+          "Fn::GetAtt": "IAMRole.Arn"
         },
-        
+
         "NetworkMode": "host",
         "Volumes": []
       }
@@ -222,11 +235,10 @@
       "Condition": "Private_Node",
       "Properties": {
         "LogGroupName": {
-          "Fn::Join" : [ "-", [ "aws_validator_gateway", {"Ref":"ClusterName"}] ]
+          "Fn::Join": ["-", ["aws_validator_gateway", { "Ref": "ClusterName" }]]
         }
       }
     },
-
 
     "LNValidatorTaskDefinition": {
       "Type": "AWS::ECS::TaskDefinition",
@@ -250,7 +262,7 @@
                 "SourceVolume": "walletpass"
               }
             ],
-            "Image": "709825985650.dkr.ecr.us-east-1.amazonaws.com/launch-nodes/validator:v1.4.3",
+            "Image": "709825985650.dkr.ecr.us-east-1.amazonaws.com/launch-nodes/validator:v2.0.4",
             "Cpu": 0,
             "LogConfiguration": {
               "LogDriver": "awslogs",
@@ -266,7 +278,7 @@
             },
             "PortMappings": [],
             "Essential": true,
-            "command": [
+            "Command": [
               "--datadir=/validatorDB",
               "--beacon-rpc-provider=34.230.142.97:4000",
               "--wallet-dir=/wallet",
@@ -289,11 +301,10 @@
           }
         ],
 
-       
         "Family": {
-          "Fn::Join" : [ "-", [ "aws_validator_task", {"Ref":"ClusterName"}] ]
+          "Fn::Join": ["-", ["aws_validator_task", { "Ref": "ClusterName" }]]
         },
-        
+        "NetworkMode": "host",
         "Volumes": [
           {
             "Name": "datavol",
@@ -322,11 +333,10 @@
       "Condition": "LN_Node",
       "Properties": {
         "LogGroupName": {
-          "Fn::Join" : [ "-", [ "aws_validator_task", {"Ref":"ClusterName"}] ]
+          "Fn::Join": ["-", ["aws_validator_task", { "Ref": "ClusterName" }]]
         }
       }
     },
-
 
     "PrivateValidatorTaskDefinition": {
       "Type": "AWS::ECS::TaskDefinition",
@@ -350,7 +360,7 @@
                 "SourceVolume": "walletpass"
               }
             ],
-            "Image": "709825985650.dkr.ecr.us-east-1.amazonaws.com/launch-nodes/validator:v1.4.3",
+            "Image": "709825985650.dkr.ecr.us-east-1.amazonaws.com/launch-nodes/validator:v2.0.4",
             "Cpu": 0,
             "LogConfiguration": {
               "LogDriver": "awslogs",
@@ -366,10 +376,17 @@
             },
             "PortMappings": [],
             "Essential": true,
-            "command": [
+            "Command": [
               "--datadir=/validatorDB",
               {
-                "Fn::Join" : [ "", [ "--beacon-rpc-provider=", {"Ref":"PrivateBeaconIP"},":4000"] ]
+                "Fn::Join": [
+                  "",
+                  [
+                    "--beacon-rpc-provider=",
+                    { "Ref": "PrivateBeaconIP" },
+                    ":4000"
+                  ]
+                ]
               },
               "--wallet-dir=/wallet",
               "--wallet-password-file=/walletpth/pass.txt",
@@ -391,12 +408,10 @@
           }
         ],
 
-        
-        
         "Family": {
-          "Fn::Join" : [ "-", [ "aws_validator_task", {"Ref":"ClusterName"}] ]
+          "Fn::Join": ["-", ["aws_validator_task", { "Ref": "ClusterName" }]]
         },
-        
+        "NetworkMode": "host",
         "Volumes": [
           {
             "Name": "datavol",
@@ -419,13 +434,13 @@
         ]
       }
     },
-    
+
     "PrivateValidatorLogGroup": {
       "Type": "AWS::Logs::LogGroup",
       "Condition": "Private_Node",
       "Properties": {
         "LogGroupName": {
-          "Fn::Join" : [ "-", [ "aws_validator_task", {"Ref":"ClusterName"}] ]
+          "Fn::Join": ["-", ["aws_validator_task", { "Ref": "ClusterName" }]]
         }
       }
     },
@@ -509,7 +524,5 @@
         }
       }
     }
-
   }
-  
 }

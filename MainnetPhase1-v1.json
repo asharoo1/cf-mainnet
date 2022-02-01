@@ -2,11 +2,7 @@
   "AWSTemplateFormatVersion": "2010-09-09",
   "Description": "Amazon ECS Phase 1-Version 1 Template",
   "Parameters": {
-    "IAMUserPassword": {
-      "NoEcho": "true",
-      "Type": "String",
-      "Description": "Set the password for IAM User.[Password must have at least 8 characters, at least 1 alphabetical character, 1 unicode symbol, and 1 number. Eg: Paas@321456]"
-    },
+    
     "KeyName": {
       "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instance",
       "Type": "AWS::EC2::KeyPair::KeyName",
@@ -48,33 +44,7 @@
     }
   },
   "Resources": {
-    "MyIAMGroup": {
-      "Type": "AWS::IAM::Group",
-      "Properties": {
-        "GroupName": "Administrators",
-        "ManagedPolicyArns": [
-          "arn:aws:iam::aws:policy/AdministratorAccess",
-          "arn:aws:iam::aws:policy/IAMUserChangePassword"
-        ]
-      }
-    },
-    "MyIAMUser": {
-      "Type": "AWS::IAM::User",
-      "Properties": {
-        "UserName": "Administrator",
-        "LoginProfile": {
-          "Password": {
-            "Ref": "IAMUserPassword"
-          }
-        },
-        "Groups": [
-          {
-            "Ref": "MyIAMGroup"
-          }
-        ]
-      },
-      "DependsOn": "MyIAMGroup"
-    },
+    
     "ecsInstanceRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
@@ -101,7 +71,7 @@
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
         "GroupDescription": "Enable SSH access via port 22",
-        "GroupName": "validator-sg",
+        "GroupName": "Validator-Cluster-SecurityGroup",
         "SecurityGroupIngress": [
           {
             "IpProtocol": "tcp",
@@ -113,7 +83,7 @@
         "Tags": [
           {
             "Key": "Name",
-            "Value": "Validator-Sg"
+            "Value": "Validator-Cluster-SecurityGroup"
           }
         ]
       }
